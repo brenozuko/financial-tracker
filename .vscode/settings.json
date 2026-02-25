@@ -1,0 +1,6 @@
+{
+  "python.defaultInterpreterPath": "/opt/homebrew/opt/python@3.14/Frameworks/Python.framework/Versions/3.14/bin/python3",
+  "python.analysis.extraPaths": [
+    "backend/src"
+  ]
+}

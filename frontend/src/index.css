@@ -1,0 +1,187 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+    --radius-sm: calc(var(--radius) - 4px);
+    --radius-md: calc(var(--radius) - 2px);
+    --radius-lg: var(--radius);
+    --radius-xl: calc(var(--radius) + 4px);
+    --radius-2xl: calc(var(--radius) + 8px);
+    --radius-3xl: calc(var(--radius) + 12px);
+    --radius-4xl: calc(var(--radius) + 16px);
+    --color-background: var(--background);
+    --color-foreground: var(--foreground);
+    --color-card: var(--card);
+    --color-card-foreground: var(--card-foreground);
+    --color-popover: var(--popover);
+    --color-popover-foreground: var(--popover-foreground);
+    --color-primary: var(--primary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-secondary: var(--secondary);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-muted: var(--muted);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-accent: var(--accent);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-destructive: var(--destructive);
+    --color-border: var(--border);
+    --color-input: var(--input);
+    --color-ring: var(--ring);
+    --color-chart-1: var(--chart-1);
+    --color-chart-2: var(--chart-2);
+    --color-chart-3: var(--chart-3);
+    --color-chart-4: var(--chart-4);
+    --color-chart-5: var(--chart-5);
+    --color-sidebar: var(--sidebar);
+    --color-sidebar-foreground: var(--sidebar-foreground);
+    --color-sidebar-primary: var(--sidebar-primary);
+    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    --color-sidebar-accent: var(--sidebar-accent);
+    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    --color-sidebar-border: var(--sidebar-border);
+    --color-sidebar-ring: var(--sidebar-ring);
+    /* Semantic extensions */
+    --color-success: var(--success);
+    --color-success-foreground: var(--success-foreground);
+    --color-warning: var(--warning);
+    --color-warning-foreground: var(--warning-foreground);
+    --color-info: var(--info);
+    --color-info-foreground: var(--info-foreground);
+}
+
+/* ============================================================
+   CATPPUCCIN MOCHA — Dark mode as default
+   Official palette: https://catppuccin.com/palette
+
+   Surfaces:
+   Crust:      #11111b  →  oklch(0.093 0.016 287)
+   Mantle:     #181825  →  oklch(0.125 0.020 286)
+   Base:       #1e1e2e  →  oklch(0.154 0.022 285)
+   Surface0:   #313244  →  oklch(0.232 0.022 278)
+   Surface1:   #45475a  →  oklch(0.322 0.022 278)
+   Surface2:   #585b70  →  oklch(0.415 0.025 276)
+
+   Text:
+   Overlay0:   #6c7086  →  oklch(0.505 0.024 277)
+   Overlay1:   #7f849c  →  oklch(0.583 0.025 278)
+   Subtext0:   #a6adc8  →  oklch(0.718 0.021 281)
+   Text:       #cdd6f4  →  oklch(0.854 0.020 281)
+
+   Colors:
+   Blue:       #89b4fa  →  oklch(0.750 0.123 268)
+   Lavender:   #b4befe  →  oklch(0.796 0.106 279)
+   Mauve:      #cba6f7  →  oklch(0.752 0.140 308)
+   Red:        #f38ba8  →  oklch(0.724 0.132 10)
+   Peach:      #fab387  →  oklch(0.786 0.110 58)
+   Yellow:     #f9e2af  →  oklch(0.907 0.091 88)
+   Green:      #a6e3a1  →  oklch(0.860 0.094 147)
+   Teal:       #94e2d5  →  oklch(0.858 0.077 192)
+   Sky:        #89dceb  →  oklch(0.853 0.085 208)
+   Pink:       #f5c2e7  →  oklch(0.844 0.075 325)
+   ============================================================ */
+
+/* Catppuccin Latte — light mode (default :root) */
+:root {
+    --radius: 0.5rem;
+
+    --background: oklch(0.944 0.008 262);           /* #eff1f5 Latte Base */
+    --foreground: oklch(0.385 0.024 266);           /* #4c4f69 Latte Text */
+    --card: oklch(0.919 0.009 261);                 /* #e6e9ef Latte Mantle */
+    --card-foreground: oklch(0.385 0.024 266);
+    --popover: oklch(0.944 0.008 262);
+    --popover-foreground: oklch(0.385 0.024 266);
+    --primary: oklch(0.512 0.231 264);              /* #1e66f5 Latte Blue */
+    --primary-foreground: oklch(0.944 0.008 262);
+    --secondary: oklch(0.840 0.012 259);            /* #ccd0da Latte Surface0 */
+    --secondary-foreground: oklch(0.385 0.024 266);
+    --muted: oklch(0.840 0.012 259);
+    --muted-foreground: oklch(0.553 0.020 263);     /* #7c7f93 Latte Overlay2 */
+    --accent: oklch(0.527 0.217 310);               /* #8839ef Latte Mauve */
+    --accent-foreground: oklch(0.944 0.008 262);
+    --destructive: oklch(0.447 0.200 22);           /* #d20f39 Latte Red */
+    --border: oklch(0.726 0.015 261);               /* #acb0be Latte Surface2 */
+    --input: oklch(0.840 0.012 259);
+    --ring: oklch(0.512 0.231 264);
+    --sidebar: oklch(0.892 0.011 258);              /* #dce0e8 Latte Crust */
+    --sidebar-foreground: oklch(0.385 0.024 266);
+    --sidebar-primary: oklch(0.512 0.231 264);
+    --sidebar-primary-foreground: oklch(0.944 0.008 262);
+    --sidebar-accent: oklch(0.840 0.012 259);
+    --sidebar-accent-foreground: oklch(0.385 0.024 266);
+    --sidebar-border: oklch(0.726 0.015 261);
+    --sidebar-ring: oklch(0.512 0.231 264);
+    --chart-1: oklch(0.512 0.231 264);              /* #1e66f5 Latte Blue */
+    --chart-2: oklch(0.594 0.155 148);              /* #40a02b Latte Green */
+    --chart-3: oklch(0.527 0.217 310);              /* #8839ef Latte Mauve */
+    --chart-4: oklch(0.658 0.188 333);              /* #ea76cb Latte Pink */
+    --chart-5: oklch(0.679 0.185 50);               /* #fe640b Latte Peach */
+    --success: oklch(0.594 0.155 148);              /* #40a02b Latte Green */
+    --success-foreground: oklch(0.944 0.008 262);
+    --warning: oklch(0.679 0.185 50);               /* #fe640b Latte Peach */
+    --warning-foreground: oklch(0.944 0.008 262);
+    --info: oklch(0.527 0.217 310);                 /* #8839ef Latte Mauve */
+    --info-foreground: oklch(0.944 0.008 262);
+}
+
+/* Catppuccin Mocha — dark mode */
+.dark {
+    --background: oklch(0.154 0.022 285);           /* #1e1e2e Mocha Base */
+    --foreground: oklch(0.854 0.020 281);           /* #cdd6f4 Mocha Text */
+    --card: oklch(0.232 0.022 278);                 /* #313244 Surface0 */
+    --card-foreground: oklch(0.854 0.020 281);
+    --popover: oklch(0.322 0.022 278);              /* #45475a Surface1 */
+    --popover-foreground: oklch(0.854 0.020 281);
+    --primary: oklch(0.750 0.123 268);              /* #89b4fa Mocha Blue */
+    --primary-foreground: oklch(0.093 0.016 287);   /* Crust */
+    --secondary: oklch(0.322 0.022 278);
+    --secondary-foreground: oklch(0.854 0.020 281);
+    --muted: oklch(0.232 0.022 278);
+    --muted-foreground: oklch(0.583 0.025 278);     /* #7f849c Overlay1 */
+    --accent: oklch(0.752 0.140 308);               /* #cba6f7 Mocha Mauve */
+    --accent-foreground: oklch(0.093 0.016 287);
+    --destructive: oklch(0.724 0.132 10);           /* #f38ba8 Mocha Red */
+    --border: oklch(0.322 0.022 278);
+    --input: oklch(0.232 0.022 278);
+    --ring: oklch(0.750 0.123 268);
+    --sidebar: oklch(0.125 0.020 286);              /* #181825 Mantle */
+    --sidebar-foreground: oklch(0.854 0.020 281);
+    --sidebar-primary: oklch(0.750 0.123 268);
+    --sidebar-primary-foreground: oklch(0.093 0.016 287);
+    --sidebar-accent: oklch(0.232 0.022 278);
+    --sidebar-accent-foreground: oklch(0.854 0.020 281);
+    --sidebar-border: oklch(0.232 0.022 278);
+    --sidebar-ring: oklch(0.750 0.123 268);
+    --chart-1: oklch(0.750 0.123 268);              /* blue    #89b4fa */
+    --chart-2: oklch(0.860 0.094 147);              /* green   #a6e3a1 */
+    --chart-3: oklch(0.752 0.140 308);              /* mauve   #cba6f7 */
+    --chart-4: oklch(0.844 0.075 325);              /* pink    #f5c2e7 */
+    --chart-5: oklch(0.786 0.110 58);               /* peach   #fab387 */
+    --success: oklch(0.860 0.094 147);              /* #a6e3a1 Mocha Green */
+    --success-foreground: oklch(0.093 0.016 287);
+    --warning: oklch(0.786 0.110 58);               /* #fab387 Mocha Peach */
+    --warning-foreground: oklch(0.093 0.016 287);
+    --info: oklch(0.752 0.140 308);                 /* #cba6f7 Mocha Mauve */
+    --info-foreground: oklch(0.093 0.016 287);
+}
+
+@layer base {
+    * {
+        @apply border-border outline-ring/50;
+    }
+    body {
+        @apply bg-background text-foreground;
+        font-family: "Outfit", sans-serif;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+    /* JetBrains Mono for numeric and monospace content */
+    .font-mono,
+    code,
+    kbd,
+    pre {
+        font-family: "JetBrains Mono", monospace;
+    }
+}
