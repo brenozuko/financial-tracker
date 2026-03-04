@@ -1,11 +1,12 @@
 import uuid
 
 from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
 
+from app.core.security import CurrentUser
 from app.db.session import get_db
 from app.models.user import UserCreate, UserResponse, UserUpdate
 from app.services.users import UsersService
-from sqlalchemy.orm import Session
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -25,6 +26,12 @@ def list_users(service: UsersService = UsersServiceDep):
 @router.post("/", response_model=UserResponse, status_code=201)
 def create_user(body: UserCreate, service: UsersService = UsersServiceDep):
     return service.create_user(body)
+
+
+# /me must be defined before /{user_id} to avoid path conflict
+@router.delete("/me", status_code=204)
+def delete_me(current_user: CurrentUser, service: UsersService = UsersServiceDep):
+    service.delete_user(current_user.id)
 
 
 @router.get("/{user_id}", response_model=UserResponse)

@@ -2,6 +2,36 @@
 
 Concrete, copy-paste patterns extracted from the existing codebase. Follow these exactly when adding new resources. For architectural decisions and rationale, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
+## Quick Reference (For LLMs)
+
+**When to use this doc**: Implementing models, schemas, services, routers, or any backend resource end-to-end.
+
+**Style**: Lean routers, all logic in services, SOLID principles, quality is paramount.
+
+**Key rules**:
+
+- DO: Extend `Base` for ORM models — never define `id`, `created_at`, `updated_at`
+- DO: Create exactly three Pydantic shapes per resource: `*Create`, `*Update`, `*Response`
+- DO: Put all business logic, queries, and error raising in services
+- DO: Keep route handlers to a single service call — zero logic
+- DON'T: Add `nullable=True/False` to `mapped_column()` — `Mapped[T]` handles it
+- DON'T: Raise `HTTPException` in routers — only in services
+- DON'T: Hard-delete rows — always soft-delete via `deleted_at`
+- DON'T: Reuse a `*Response` model across endpoints with different data needs
+
+**Detection commands**:
+
+```bash
+# Business logic leaking into routers (if/for/try in api/ files)
+grep -rn "if \|for \|try:" src/app/api/ --include="*.py" | grep -v "def \|import\|#"
+
+# Missing soft-delete filter
+grep -rn "\.query(" src/app/services/ --include="*.py" | grep -v "deleted_at"
+
+# Hard deletes (should not exist)
+grep -rn "\.delete(" src/app/services/ --include="*.py"
+```
+
 ---
 
 ## 1. ORM Model (`db/schema.py`)
@@ -28,21 +58,20 @@ class Transaction(Base):
     )
 ```
 
-### `Mapped` type inference rules
+### Rules
 
-`Mapped[T]` already encodes nullability — never repeat it in `mapped_column()`:
+- DO: Let `Mapped[T]` encode nullability — `Mapped[str]` = NOT NULL, `Mapped[Optional[str]]` = NULL
+- DO: Use `mapped_column()` only when extra config is needed (see table below)
+- DO: Add `deleted_at` to every soft-deletable model
+- DO: Define enums as `str, enum.Enum` subclasses at the top of `schema.py`
+- DO: Map enums with `SAEnum(MyEnum, name="myenum")` — name must be unique in Postgres
+- DO: Use `back_populates` for bidirectional relationships
+- DON'T: Pass `nullable=True` or `nullable=False` to `mapped_column()` — `Mapped[T]` handles it
+- DON'T: Add redundant type columns like `Float`, `Boolean`, `Integer` — `Mapped[T]` infers them
 
-| Annotation | Implied | So drop... |
-|---|---|---|
-| `Mapped[str]` | NOT NULL | `nullable=False` |
-| `Mapped[Optional[str]]` | NULL | `nullable=True` |
-| `Mapped[float]` | FLOAT, NOT NULL | `Float`, `nullable=False` |
-| `Mapped[bool]` | BOOLEAN, NOT NULL | `Boolean`, `nullable=False` |
-| `Mapped[int]` | INTEGER, NOT NULL | `Integer`, `nullable=False` |
+### When `mapped_column()` is required
 
-Use `mapped_column()` **only** when extra configuration is required:
-
-| Needs `mapped_column()`? | Why |
+| Needs it? | Why |
 |---|---|
 | `String(128)` | length constraint |
 | `Text` | unbounded text (distinct from `VARCHAR`) |
@@ -53,12 +82,6 @@ Use `mapped_column()` **only** when extra configuration is required:
 | `primary_key=True` | primary key designation |
 
 If `mapped_column()` would only contain `nullable=True` or `nullable=False`, omit it entirely.
-
-**Other rules:**
-- Add `deleted_at` to every soft-deletable model.
-- Enums are `str, enum.Enum` subclasses so they serialize to JSON as strings.
-- Map enums with `SAEnum(MyEnum, name="myenum")` — the `name` must be unique in Postgres.
-- Relationships use `back_populates` for bidirectional navigation.
 
 ### Enums
 
@@ -116,10 +139,6 @@ class AccountUpdate(BaseModel):
         return v.strip() if v else v
 ```
 
-**Rules:**
-- Every field is `Optional[T] = None`.
-- Validators check `if v is not None` before validating so omitted fields pass through.
-
 ### `*Response`
 
 ```python
@@ -137,11 +156,6 @@ class AccountResponse(BaseModel):
     updated_at: datetime
 ```
 
-**Rules:**
-- Always include `model_config = ConfigDict(from_attributes=True)`.
-- Always include `id`, `created_at`, `updated_at`.
-- Nest related `*Response` models for eager-loaded relationships (see transactions example below).
-
 ### Nested responses (for relationships)
 
 ```python
@@ -158,9 +172,20 @@ class TransactionResponse(BaseModel):
     category: Optional[CategoryResponse]
 ```
 
+### Rules
+
+- DO: Always include `model_config = ConfigDict(from_attributes=True)` in `*Response`
+- DO: Always include `id`, `created_at`, `updated_at` in `*Response`
+- DO: Make every `*Update` field `Optional[T] = None`
+- DO: Guard `*Update` validators with `if v is not None` so omitted fields pass through
+- DO: Nest related `*Response` models for eager-loaded relationships
+- DON'T: Reuse a response model across endpoints that return different data — one model per endpoint
+
 ---
 
 ## 3. Service (`services/<resource>.py`)
+
+### Standard CRUD service
 
 ```python
 class AccountsService(BaseService):
@@ -205,14 +230,16 @@ class AccountsService(BaseService):
         self.session.commit()
 ```
 
-**Rules:**
-- Extend `BaseService`. Never define `__init__` unless you need extra collaborators.
-- Every list query filters `deleted_at.is_(None)` and orders by `sort_order`.
-- `get_*` raises `HTTPException(404)` if not found. All other methods call `get_*` first.
-- Create: `Model(**body.model_dump())` → `add` → `commit` → `refresh`.
-- Update: `body.model_dump(exclude_unset=True)` → iterate → `setattr` → `commit` → `refresh`.
-- Delete: set `deleted_at = datetime.now(timezone.utc)` → `commit`. Never hard-delete.
-- Raise `HTTPException` directly in the service — never in the router.
+### Rules
+
+- DO: Extend `BaseService` — never define `__init__` unless you need extra collaborators
+- DO: Filter `deleted_at.is_(None)` and order by `sort_order` in every list query
+- DO: Raise `HTTPException(404)` in `get_*` if not found — all other methods call `get_*` first
+- DO: Create with `Model(**body.model_dump())` then `add` / `commit` / `refresh`
+- DO: Update with `body.model_dump(exclude_unset=True)` then `setattr` loop / `commit` / `refresh`
+- DO: Soft-delete by setting `deleted_at = datetime.now(timezone.utc)` then `commit`
+- DON'T: Hard-delete — never call `session.delete()`
+- DON'T: Raise `HTTPException` in routers — always in services
 
 ### Eager loading relationships
 
@@ -327,12 +354,15 @@ def delete_account(account_id: uuid.UUID, service: AccountsService = AccountsSer
     service.delete_account(account_id)
 ```
 
-**Rules:**
-- Define `get_*_service()` and `*ServiceDep` locally in the file. Do not use `core/deps.py`.
-- Route handlers contain zero logic — one line calling the service method.
-- `response_model` and `status_code` always specified.
-- Standard status codes: `200` GET/PATCH, `201` POST, `204` DELETE.
-- Declare static routes (e.g. `/summary`, `/bulk`) **before** parameterized routes (`/{id}`).
+### Rules
+
+- DO: Define `get_*_service()` and `*ServiceDep` locally in each router file
+- DO: Keep every handler to a single service call — zero logic
+- DO: Always specify `response_model` and `status_code`
+- DO: Use standard status codes: `200` GET/PATCH, `201` POST, `204` DELETE
+- DO: Declare static routes (`/summary`, `/bulk`) **before** parameterized routes (`/{id}`)
+- DON'T: Add `if`, `for`, `try`, or any branching to route handlers
+- DON'T: Add new entries to `core/deps.py` — each router owns its dependencies
 
 ### Router registration (`main.py`)
 
@@ -347,200 +377,6 @@ app.include_router(settings.router, prefix=PREFIX)
 
 ---
 
-## 5. Integration Tests (`tests/integration/test_<resource>_integration.py`)
-
-### Fixture (already in `conftest.py` — do not redefine)
-
-```python
-@pytest.fixture
-def client_with_test_db():
-    # Creates isolated SQLite DB per test, overrides get_db, tears down after.
-    ...
-```
-
-### Test structure
-
-```python
-def test_list_accounts_empty(client_with_test_db):
-    resp = client_with_test_db.get("/api/accounts/")
-    assert resp.status_code == 200
-    assert resp.json() == []
-
-
-def test_create_account(client_with_test_db):
-    resp = client_with_test_db.post(
-        "/api/accounts/",
-        json={"name": "Checking", "type": "checking", "balance": 1000.0},
-    )
-    assert resp.status_code == 201
-    data = resp.json()
-    assert data["name"] == "Checking"
-    assert data["type"] == "checking"
-    assert data["balance"] == 1000.0
-
-
-def test_get_account_not_found(client_with_test_db):
-    resp = client_with_test_db.get("/api/accounts/00000000-0000-0000-0000-000000000000")
-    assert resp.status_code == 404
-
-
-def test_update_account(client_with_test_db):
-    create_resp = client_with_test_db.post(
-        "/api/accounts/",
-        json={"name": "Cash", "type": "cash"},
-    )
-    account_id = create_resp.json()["id"]
-
-    resp = client_with_test_db.patch(
-        f"/api/accounts/{account_id}", json={"balance": 500.0}
-    )
-    assert resp.status_code == 200
-    assert resp.json()["balance"] == 500.0
-
-
-def test_delete_account(client_with_test_db):
-    create_resp = client_with_test_db.post(
-        "/api/accounts/",
-        json={"name": "Old Account", "type": "other"},
-    )
-    account_id = create_resp.json()["id"]
-
-    client_with_test_db.delete(f"/api/accounts/{account_id}")
-
-    resp = client_with_test_db.get(f"/api/accounts/{account_id}")
-    assert resp.status_code == 404   # soft delete verified
-```
-
-**Rules:**
-- One test function per scenario. Each test is fully independent.
-- Assert status code first, then response fields.
-- Always test the not-found (404) case.
-- Verify soft delete by confirming GET returns 404 after DELETE.
-- Use a private helper (e.g. `_create_account(client)`) when a resource must exist as a prerequisite.
-
-### Helper pattern for prerequisite resources
-
-```python
-def _create_account(client, name="Test Account", account_type="checking") -> str:
-    resp = client.post(
-        "/api/accounts/",
-        json={"name": name, "type": account_type},
-    )
-    assert resp.status_code == 201
-    return resp.json()["id"]
-
-
-def test_create_transaction(client_with_test_db):
-    account_id = _create_account(client_with_test_db)
-
-    resp = client_with_test_db.post(
-        "/api/transactions/",
-        json={
-            "account_id": account_id,
-            "type": "expense",
-            "amount": 50.0,
-            "date": datetime.now(timezone.utc).isoformat(),
-        },
-    )
-    assert resp.status_code == 201
-```
-
----
-
-## 6. SOLID Principles
-
-These principles are not abstract — they have direct, concrete implications for every layer of this codebase.
-
-### S — Single Responsibility
-
-Each layer owns exactly one concern. Never let concerns bleed across layers.
-
-| Layer | Its one job | What it must NOT do |
-|---|---|---|
-| `api/` | Parse HTTP, call service, return result | Query the DB, raise business errors |
-| `services/` | Business logic, DB queries, error raising | Know about HTTP request/response shapes |
-| `models/` | Validate and serialize data | Query the DB or contain business logic |
-| `db/schema.py` | Describe persistence structure | Contain validation or business rules |
-
-If a service method is doing two distinct things, split it into two methods.
-
-### O — Open/Closed
-
-`BaseService` is **closed for modification** — extend it, never change it. New behaviour goes in a new subclass or a new method on the subclass.
-
-```python
-# Correct: extend, don't modify BaseService
-class AccountsService(BaseService):
-    def archive_old_accounts(self) -> int:
-        ...
-
-# Wrong: adding generic helpers to BaseService itself
-class BaseService:
-    def soft_delete(self, obj):   # ← don't do this
-        ...
-```
-
-### L — Liskov Substitution
-
-All service subclasses must honour `BaseService`'s contract: a `Session` is the only required constructor argument. Services with extra dependencies extend the signature — they don't replace it.
-
-```python
-# Correct: super().__init__ called, extra args are additive
-class ReportsService(BaseService):
-    def __init__(
-        self,
-        session: Session,
-        settings_service: SettingsService,
-        ai_client_factory: Callable,
-    ) -> None:
-        super().__init__(session)
-        self.settings_service = settings_service
-        self.ai_client_factory = ai_client_factory
-```
-
-### I — Interface Segregation
-
-Services expose only methods for their own resource. If a service needs data from another resource, it receives the other service as a collaborator — it does not grow unrelated methods.
-
-```python
-# Wrong: TransactionsService reaching into Account territory
-class TransactionsService(BaseService):
-    def get_account_balance(self, account_id):  # ← doesn't belong here
-        ...
-
-# Correct: inject AccountsService as a collaborator when needed
-class ReportsService(BaseService):
-    def __init__(self, session, accounts_service: AccountsService, ...):
-        super().__init__(session)
-        self.accounts_service = accounts_service
-```
-
-### D — Dependency Inversion
-
-High-level modules depend on abstractions, not concretions. External collaborators (AI providers, third-party clients) are abstracted via `Protocol` and injected — never instantiated inside a service.
-
-```python
-# Protocol as abstraction (already used for AI clients)
-class AIClient(Protocol):
-    async def complete(self, *, system_prompt: str, user_prompt: str) -> str: ...
-
-# Service receives the factory, not a concrete client
-class ReportsService(BaseService):
-    def __init__(self, ..., ai_client_factory: Callable[[AIProvider, str], AIClient]):
-        self.ai_client_factory = ai_client_factory
-
-# Router wires up the concrete implementation
-def get_reports_service() -> ReportsService:
-    session = SessionLocal()
-    return ReportsService(
-        session=session,
-        settings_service=SettingsService(session),
-        ai_client_factory=build_ai_client,  # concrete factory injected here
-    )
-```
-
----
-
 ## Quick checklist for a new resource
 
 1. `db/schema.py` — ORM model + enums
@@ -550,4 +386,3 @@ def get_reports_service() -> ReportsService:
 5. `services/<resource>.py` — extend `BaseService`
 6. `api/<resource>.py` — `APIRouter`, local factory, thin handlers
 7. `main.py` — `app.include_router(<resource>.router, prefix=PREFIX)`
-8. `tests/integration/test_<resource>_integration.py` — CRUD + edge cases

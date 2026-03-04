@@ -1,17 +1,22 @@
+VENV := .venv/bin
+
 run:
-	poetry run uvicorn app.main:app --reload --app-dir src
+	$(VENV)/uvicorn app.main:app --reload --app-dir src
 
 db-generate:
-	poetry run alembic revision --autogenerate -m "$(msg)"
+	$(VENV)/alembic revision --autogenerate -m "$(msg)"
 
 db-upgrade:
-	poetry run alembic upgrade head
+	$(VENV)/alembic upgrade head
 
 db-downgrade:
-	poetry run alembic downgrade -1
+	$(VENV)/alembic downgrade -1
 
 test:
-	poetry run pytest
+	$(VENV)/pytest
+
+db-seed:
+	cd src && $(CURDIR)/$(VENV)/python -m app.db.seed
 
 install:
 	poetry install
