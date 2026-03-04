@@ -1,15 +1,11 @@
-import hashlib
 import uuid
 
 from fastapi import HTTPException
 
+from app.core.security import hash_password
 from app.db.schema import User
 from app.models.user import UserCreate, UserUpdate
 from app.services.base import BaseService
-
-
-def _hash_password(password: str) -> str:
-    return hashlib.sha256(password.encode()).hexdigest()
 
 
 class UsersService(BaseService):
@@ -29,7 +25,7 @@ class UsersService(BaseService):
         user = User(
             email=body.email,
             name=body.name,
-            hashed_password=_hash_password(body.password),
+            hashed_password=hash_password(body.password),
         )
         self.session.add(user)
         self.session.commit()

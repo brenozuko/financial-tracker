@@ -595,34 +595,89 @@ export const Route = createRootRoute({
 
 ## 12. Route Components (`routes/<resource>/index.tsx`)
 
-Routes are thin. Read params, render feature components. No data-fetching logic here.
+Route files contain the page component and route-level config (`beforeLoad`, `validateSearch`, `loader`). No data-fetching logic here.
+
+Two rules govern the split between route files and feature components:
+
+**Rule 1 — Page components live in the route file, not in `features/`.** A page component is the top-level component a route renders. It owns layout (header, grid, spacing) and composes feature sub-components. It must be defined directly in the route file — never exported from `features/<resource>/components/` and re-imported.
+
+**Rule 2 — Sub-components live in `features/<resource>/components/`, not inline in the route file.** Reusable UI pieces (cards, tables, modals, forms, banners) belong in the feature directory so they can be shared across pages without duplication.
 
 ```tsx
-// routes/accounts/index.tsx
+// ✅ Correct — page defined in route file, sub-components imported from features
+
+// routes/_authenticated/index.tsx
 
 import { createFileRoute } from "@tanstack/react-router"
-import { AccountList } from "@/features/accounts/AccountList"
+import { StatCards } from "@/features/dashboard/components/StatCards"
+import { RecentTransactions } from "@/features/dashboard/components/RecentTransactions"
+import { SpendingByCategory } from "@/features/dashboard/components/SpendingByCategory"
 
-export const Route = createFileRoute("/accounts/")({
-  component: AccountsPage,
+export const Route = createFileRoute("/_authenticated/")({
+  component: DashboardPage,
 })
 
-function AccountsPage() {
+function DashboardPage() {
   return (
-    <div className="p-6">
-      <AccountList />
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight">Overview</h1>
+        <p className="mt-1 text-sm text-muted-foreground">March 2026</p>
+      </div>
+      <StatCards />
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
+        <div className="lg:col-span-3"><RecentTransactions /></div>
+        <div className="lg:col-span-2"><SpendingByCategory /></div>
+      </div>
     </div>
   )
 }
 ```
 
-For routes with path params:
+```tsx
+// ❌ Wrong — page component exported from features and re-imported into the route
+
+// features/dashboard/components/Dashboard.tsx  ← should not exist as a "page"
+export default function Dashboard() {
+  return <div>...entire page layout...</div>
+}
+
+// routes/_authenticated/index.tsx
+import Dashboard from "@/features/dashboard/components/Dashboard"  // ❌
+export const Route = createFileRoute("/_authenticated/")({ component: Dashboard })
+```
+
+```tsx
+// ❌ Also wrong — sub-components defined inline in the route file
+
+function DashboardPage() { ... }
+
+// These belong in features/dashboard/components/, not here:
+function StatCards() { ... }
+function RecentTransactions() { ... }
+```
+
+Feature directory structure — sub-components in `components/`, no page-level file:
+
+```
+features/dashboard/
+  components/
+    StatCards.tsx           ← sub-component, used by DashboardPage in the route
+    RecentTransactions.tsx
+    SpendingByCategory.tsx
+  data/
+    mockData.ts
+  api.ts
+  queries.ts
+```
+
+For routes with path or search params, use `Route.useParams()` / `Route.useSearch()` inside the page component — there is no need to create a separate wrapper:
 
 ```tsx
 // routes/accounts/$accountId.tsx
 
 import { createFileRoute } from "@tanstack/react-router"
-import { AccountDetail } from "@/features/accounts/AccountDetail"
+import { AccountDetail } from "@/features/accounts/components/AccountDetail"
 
 export const Route = createFileRoute("/accounts/$accountId")({
   component: AccountDetailPage,
